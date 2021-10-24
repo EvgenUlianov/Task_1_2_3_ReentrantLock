@@ -122,8 +122,8 @@ public class OrderList implements Lock, Condition {
         return ORDER_HAS_NOT_FOUND;
     }
 
-    private int findOrderByStatus(OrderStatus status) {
-        for (int i = 0; i < orders.size(); i++) {
+    private int findOrderByStatus(OrderStatus status, int fromIndex) {
+        for (int i = fromIndex; i < orders.size(); i++) {
             Order order = orders.get(i);
             if (order.status == status)
                 return i;
@@ -135,9 +135,9 @@ public class OrderList implements Lock, Condition {
         return orders.get(index).customersName;
     }
 
-    public int findOrderORDEREDorPREPARED() {
-        int indexORDERED = findOrderByStatus(OrderStatus.ORDERED);
-        int indexPREPARED = findOrderByStatus(OrderStatus.PREPARED);
+    public int findOrderORDEREDorPREPARED(int fromIndex) {
+        int indexORDERED = findOrderByStatus(OrderStatus.ORDERED, fromIndex);
+        int indexPREPARED = findOrderByStatus(OrderStatus.PREPARED, fromIndex);
         if (indexORDERED > ORDER_HAS_NOT_FOUND && indexPREPARED > ORDER_HAS_NOT_FOUND) {
             return Math.min(indexORDERED, indexPREPARED);
         } else if (indexORDERED == ORDER_HAS_NOT_FOUND && indexPREPARED > ORDER_HAS_NOT_FOUND) {
@@ -147,15 +147,13 @@ public class OrderList implements Lock, Condition {
         } else  {
             return ORDER_HAS_NOT_FOUND;
         }
-
     }
-
     public int findOrderACCEPTED() {
-        return findOrderByStatus(OrderStatus.ACCEPTED);
+        return findOrderByStatus(OrderStatus.ACCEPTED, 0);
     }
 
     public int findOrderCARRIED() {
-        return findOrderByStatus(OrderStatus.CARRIED);
+        return findOrderByStatus(OrderStatus.CARRIED, 0);
     }
 
     public boolean allOrdersAreEATED() {
@@ -251,6 +249,11 @@ public class OrderList implements Lock, Condition {
     public void lock(int index) throws IndexOutOfBoundsException{
         Order order = orders.get(index);
         order.lock();
+    }
+
+    public boolean tryLock(int index) throws IndexOutOfBoundsException {
+        Order order = orders.get(index);
+        return order.tryLock();
     }
 
     public void unlock(int index) throws IndexOutOfBoundsException{

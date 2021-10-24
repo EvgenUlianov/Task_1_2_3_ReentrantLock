@@ -22,36 +22,50 @@ public class Waiter extends Thread implements Runnable{
 
             orderList.lock();
             try {
-                index = orderList.findOrderORDEREDorPREPARED();
+                index = orderList.findOrderORDEREDorPREPARED(0);
             } finally {
                 orderList.unlock();
             }
 
             if (index >= 0) {
-                orderList.lock(index);
-                try {
-                    successful = orderList.canAcceptOrCarryOrder(index);
-                    if (successful) {
+                boolean successfulLock = false;
+                while (!successfulLock && index >= 0) {
+                    successfulLock = orderList.tryLock(index);
+                    if (!successfulLock) {
+                        orderList.lock();
                         try {
-                            Thread.sleep(timeOut);
-                            orderList.acceptOrCarryOrder(index, currentName);
-                        } catch (InterruptedException e) {
-                            successful = false;
-                            e.printStackTrace();
+                            index = orderList.findOrderORDEREDorPREPARED(index + 1);
+                        } finally {
+                            orderList.unlock();
                         }
                     }
-                    if (successful) {
-                        orderList.signalAll(index);
-                    } else  {
+                }
+                if (index >= 0) {
+                    try {
+                        successful = orderList.canAcceptOrCarryOrder(index);
+                        if (successful) {
+                            try {
+                                Thread.sleep(timeOut);
+                                orderList.acceptOrCarryOrder(index, currentName);
+                            } catch (InterruptedException e) {
+                                successful = false;
+                                e.printStackTrace();
+                            }
+                        }
+                        if (successful) {
+                            orderList.signalAll(index);
+                        } else  {
 //                        try {
 //                            orderList.await(index);
 //                        } catch (InterruptedException e) {
 ////                    e.printStackTrace();
 //                        }
+                        }
+                    } finally {
+                        orderList.unlock(index);
                     }
-                } finally {
-                    orderList.unlock(index);
                 }
+
             }
 
             if (interrupted())
